@@ -156,7 +156,7 @@ function parseFrames(t){const blk=nm=>{const m=new RegExp('###\\s*'+nm+'\\s*\\n+
   return{gs:blk('GLOBAL_STYLE'),gn:blk('GLOBAL_NEGATIVE'),fr}}
 function loadFrames(){const r=parseFrames($('#fmd').value);if(!r.fr.length){toast('Кадри FRAME_nn не розпізнано');return}
   if(r.gs)$('#gs').value=r.gs;if(r.gn)$('#gn').value=r.gn;mode='frames';
-  $('#sizeSel').value='2048x1152';$('#sizeCustom').style.display='none';$('#quality').value='low';$('#n').value=2;
+  $('#sizeSel').value='2048x1152';$('#sizeCustom').style.display='none';$('#quality').value='low';$('#n').value=1;
   slots=r.fr.map(f=>({id:'FRAME_'+String(f.n).padStart(2,'0'),n:f.n,kind:'f',kw:f.kw,vo:f.vo,time:f.time,vars:[],picked:null,approved:false,err:'',st:'idle'}));render();toast(`Кадрів: ${slots.length}. Спершу кадр 1, потім решта`)}
 function parseMd(t){const out=[];let cur=null;for(const raw of t.split('\n')){const l=raw.trim();if(/^##\s*Q?\d+/i.test(l)){cur=['',''];out.push(cur)}else if(cur&&/^q\s*:/i.test(l))cur[0]=l.replace(/^q\s*:/i,'').trim();else if(cur&&/^a\s*:/i.test(l))cur[1]=l.replace(/^a\s*:/i,'').trim()}return out}
 
@@ -226,6 +226,7 @@ async function generate(s){
   s.st='idle';render()}
 
 async function genAll(){const todo=slots.filter(s=>!s.vars.length&&s.kw.trim());if(!todo.length){toast('Немає порожніх слотів з ключовими словами');return}
+  if(mode==='frames'){const f1=todo.find(x=>x.n===1);if(f1){await generate(f1);todo.splice(todo.indexOf(f1),1)}}
   const c=Math.max(1,Math.min(6,+$('#conc').value||3));const q=[...todo];await Promise.all(Array.from({length:c},async()=>{while(q.length)await generate(q.shift())}))}
 
 async function plan(useLlm){
