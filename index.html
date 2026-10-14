@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0f1220;--panel:#171b2e;--line:#2a3050;--text:#e8ebff;--mute:#8d95c0;--acc:#5b8cff;--ok:#38c98a;--bad:#ff6b6b;--warn:#f5b84b}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14 px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{position:sticky;top:0;z-index:5;background:#0f1220ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 h1{font-size:16px;margin:0 8px 0 0}
 button,select,input,textarea{font:inherit;color:var(--text);background:#1f2540;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
@@ -54,6 +54,7 @@ textarea{min-height:110px;resize:vertical}
 .v .dl{position:absolute;bottom:2px;right:2px;background:#000a;border:0;border-radius:6px;padding:0 6px;font-size:11px;line-height:18px}
 .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .acts button{padding:4px 9px;font-size:12px}
+.frame .v{aspect-ratio:16/9}.frame .vars{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.prev{width:300px;flex:none;background:#000;border-radius:8px;overflow:hidden;border:1px solid var(--line)}.prev img{width:100%;height:100%;object-fit:cover;display:block}.vo{color:var(--mute);font-size:12px}
 .err{color:var(--bad);font-size:12px;margin-top:6px;word-break:break-word}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--mute);border-top-color:var(--acc);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px}
 @keyframes s{to{transform:rotate(360deg)}}
@@ -90,7 +91,7 @@ textarea{min-height:110px;resize:vertical}
       <div><label>Формат</label><select id="fmt"><option>png</option><option>jpeg</option><option>webp</option></select></div>
     </div>
     <label>Розмір</label>
-    <select id="sizeSel"><option value="1152x1280">top 1152x1280 (верх екрана)</option><option value="1152x2048">full 1152x2048 (9:16)</option><option value="1024x1024">square 1024x1024</option><option value="custom">свій...</option></select>
+    <select id="sizeSel"><option value="1152x1280">top 1152x1280 (верх екрана)</option><option value="1152x2048">full 1152x2048 (9:16)</option><option value="1024x1024">square 1024x1024</option><option value="2048x1152">16:9 чернетка 2048x1152</option><option value="3840x2160">16:9 4K 3840x2160</option><option value="custom">свій...</option></select>
     <input id="sizeCustom" placeholder="WxH, кратно 16, напр. 1440x1600" style="display:none;margin-top:6px">
     <div class="row">
       <div><label>Варіантів на слот (1-8)</label><input id="n" type="number" min="1" max="8" value="2"></div>
@@ -107,7 +108,17 @@ textarea{min-height:110px;resize:vertical}
     <label>Негатив</label><input id="neg">
   </div>
   <div class="panel">
-    <h2>Питання → ключові слова</h2>
+    <h2>Кадри для відео (16:9)</h2>
+    <label>Вставте MD з GLOBAL_STYLE / GLOBAL_NEGATIVE / FRAME_nn</label>
+    <textarea id="fmd" placeholder="### GLOBAL_STYLE ..."></textarea>
+    <button id="loadFrames" class="pri" style="margin-top:8px;width:100%">Завантажити кадри (16:9)</button>
+    <label>Стиль (додається до кожного кадру)</label><textarea id="gs" style="min-height:90px"></textarea>
+    <label>Негатив</label><textarea id="gn" style="min-height:50px"></textarea>
+    <label class="chk"><input type="checkbox" id="useRef" checked> кадр 1 як стиль-референс для решти (images.edit)</label>
+    <div class="hint">Спершу згенеруйте і виберіть кадр 1, потім решту.</div>
+  </div>
+  <div class="panel">
+    <h2>Питання → ключові слова (фони Q/A)</h2>
     <label>Рядки у форматі «питання || відповідь»</label>
     <textarea id="qs" placeholder="Яке місто називають Вічним містом? || Рим"></textarea>
     <div class="row" style="margin-top:8px"><button id="plan" class="pri">Придумати слова (LLM)</button><button id="planMock">Без LLM</button></div>
@@ -127,7 +138,7 @@ const $=s=>document.querySelector(s);
 const PRICE={low:.006,medium:.053,high:.211,auto:.053};
 const DEF={base:"Wide stylized digital painting, soft atmospheric haze, pastel neon palette of cyan, cobalt blue, violet and magenta pink, glowing lights, a sun or moon disc near one edge. The top fifth is calm smooth sky with no detail. The main landmark sits in the middle third. The lower part dissolves into a flat soft blue-violet haze. Semi-realistic illustration.",moodQ:"Mood: mysterious, darker, unresolved.",moodA:"Mood: revealing, brighter, resolved.",neg:"text, letters, numbers, faces, logos, watermark, frames, UI elements"};
 const EXAMPLE=[["ancient library, candlelight, dust motes","papyrus scrolls, marble columns, golden dawn"],["night sky, telescope, observatory dome","nebula, spiral galaxy, deep violet"],["stone bridge, morning fog, river","castle on cliff, banners, sunrise"]];
-let slots=[]; let spent=0; const running=new Set();
+let slots=[]; let spent=0; let mode='bg'; const running=new Set();
 
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 function toast(t,ms=3500){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',ms)}
@@ -135,14 +146,24 @@ function size(){const v=$('#sizeSel').value;return v==='custom'?$('#sizeCustom')
 function checkSize(s){const m=/^(\d+)x(\d+)$/.exec(s);if(!m)throw new Error('Розмір має бути WxH');const w=+m[1],h=+m[2];if(w%16||h%16)throw new Error('Сторони кратні 16');if(Math.max(w,h)>3840)throw new Error('Макс. сторона 3840');if(w*h>8294400)throw new Error('Макс. 8,29 Мп');return[w,h]}
 function cost(n){let px=1024*1024;try{const[w,h]=checkSize(size());px=w*h}catch(e){}return n*PRICE[$('#quality').value]*px/1048576}
 function params(){return{model:$('#model').value.trim(),quality:$('#quality').value,fmt:$('#fmt').value,size:size(),n:Math.max(1,Math.min(8,+$('#n').value||2))}}
-function prompt(s){const parts=[$('#base').value.trim(),`Scene: ${s.kw}.`,(s.kind==='q'?$('#moodQ').value:$('#moodA').value).trim()];const ng=$('#neg').value.trim();if(ng)parts.push(`Avoid: ${ng}.`);return parts.filter(Boolean).join(' ')}
+function prompt(s){if(s.kind==='f'){const ng=$('#gn').value.trim();return [s.kw.trim(),$('#gs').value.trim(),ng?`Avoid: ${ng}.`:''].filter(Boolean).join(' ')}
+  const parts=[$('#base').value.trim(),`Scene: ${s.kw}.`,(s.kind==='q'?$('#moodQ').value:$('#moodA').value).trim()];const ng=$('#neg').value.trim();if(ng)parts.push(`Avoid: ${ng}.`);return parts.filter(Boolean).join(' ')}
 
-function initSlots(pairs){slots=[];pairs.forEach(([q,a],i)=>{const n=String(i+1).padStart(2,'0');slots.push({id:`Q${n}-q`,n:i+1,kind:'q',kw:q||'',vars:[],picked:null,approved:false,err:'',st:'idle'},{id:`Q${n}-a`,n:i+1,kind:'a',kw:a||'',vars:[],picked:null,approved:false,err:'',st:'idle'})});render()}
+function initSlots(pairs){mode='bg';slots=[];pairs.forEach(([q,a],i)=>{const n=String(i+1).padStart(2,'0');slots.push({id:`Q${n}-q`,n:i+1,kind:'q',kw:q||'',vars:[],picked:null,approved:false,err:'',st:'idle'},{id:`Q${n}-a`,n:i+1,kind:'a',kw:a||'',vars:[],picked:null,approved:false,err:'',st:'idle'})});render()}
+function parseFrames(t){const blk=nm=>{const m=new RegExp('###\\s*'+nm+'\\s*\\n+```[a-z]*\\n([\\s\\S]*?)```').exec(t);return m?m[1].trim():''};
+  const parts=t.split(/\n##\s+FRAME_(\d+)\s*\n/);const fr=[];
+  for(let i=1;i<parts.length;i+=2){const b=parts[i+1];const g=re=>((re.exec(b)||[])[1]||'').trim();const pr=/###\s*PROMPT\s*\n+```[a-z]*\n([\s\S]*?)```/.exec(b);if(pr)fr.push({n:+parts[i],vo:g(/\*\*Voice-over:\*\*\s*(.+)/),time:g(/\*\*Time:\*\*\s*(.+)/),kw:pr[1].trim()})}
+  return{gs:blk('GLOBAL_STYLE'),gn:blk('GLOBAL_NEGATIVE'),fr}}
+function loadFrames(){const r=parseFrames($('#fmd').value);if(!r.fr.length){toast('Кадри FRAME_nn не розпізнано');return}
+  if(r.gs)$('#gs').value=r.gs;if(r.gn)$('#gn').value=r.gn;mode='frames';
+  $('#sizeSel').value='2048x1152';$('#sizeCustom').style.display='none';$('#quality').value='low';$('#n').value=2;
+  slots=r.fr.map(f=>({id:'FRAME_'+String(f.n).padStart(2,'0'),n:f.n,kind:'f',kw:f.kw,vo:f.vo,time:f.time,vars:[],picked:null,approved:false,err:'',st:'idle'}));render();toast(`Кадрів: ${slots.length}. Спершу кадр 1, потім решта`)}
 function parseMd(t){const out=[];let cur=null;for(const raw of t.split('\n')){const l=raw.trim();if(/^##\s*Q?\d+/i.test(l)){cur=['',''];out.push(cur)}else if(cur&&/^q\s*:/i.test(l))cur[0]=l.replace(/^q\s*:/i,'').trim();else if(cur&&/^a\s*:/i.test(l))cur[1]=l.replace(/^a\s*:/i,'').trim()}return out}
 
 function phoneSvg(){return `<svg viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M0 60V28Q50 8 100 28V60Z" fill="#5a3fd1"/><circle cx="50" cy="26" r="10" fill="#f2c9a0"/><path d="M30 24Q50-6 70 24Z" fill="#3b2b9e"/></svg>`}
 function render(){
   const L=$('#list');L.innerHTML='';
+  if(mode==='frames'){slots.forEach(s=>L.appendChild(slotEl(s)));stats();return}
   const byN={};slots.forEach(s=>(byN[s.n]=byN[s.n]||[]).push(s));
   Object.values(byN).forEach(pair=>{
     const box=document.createElement('div');box.className='q';box.innerHTML=`<h3>Питання ${pair[0].n}</h3><div class="pair"></div>`;
@@ -152,6 +173,11 @@ function render(){
 function slotEl(s){
   const el=document.createElement('div');el.className='slot'+(s.approved?' approved':'');el.id='s-'+s.id;
   const pk=s.vars.find(v=>v.id===s.picked&&!v.rej);
+  const varsHtml=s.vars.map(v=>`<div class="v ${v.id===s.picked?'sel':''} ${v.rej?'rej':''}" data-id="${v.id}"><img src="${v.url}"><button class="x" title="відхилити">✕</button><button class="dl" title="зберегти">⤓</button></div>`).join('');
+  const actsHtml=`<div class="acts"><button class="gen pri">${s.vars.length?'Ще варіанти':'Згенерувати'}</button><button class="appr ${s.approved?'ok':''}" ${pk?'':'disabled'}>${s.approved?'Затверджено ✓':'Затвердити'}</button>${s.kind==='f'?'':'<button class="clean">Макет/чисто</button>'}${s.st==='gen'?'<span class="spin"></span>':''}</div>${s.err?`<div class="err">${esc(s.err)}</div>`:''}`;
+  if(s.kind==='f'){el.classList.add('frame');const ar=(size().replace('x','/')||'16/9');
+    el.innerHTML=`<div class="top"><span class="badge q">${s.id}</span><span class="badge">${esc(s.time||'')}</span><span class="vo">${esc(s.vo||'')}</span></div><textarea class="kw" style="width:100%;min-height:84px">${esc(s.kw)}</textarea><div class="body" style="margin-top:8px"><div class="prev" style="aspect-ratio:${ar}">${pk?`<img src="${pk.url}">`:''}</div><div class="vars">${varsHtml}</div></div>${actsHtml}`;
+  } else
   el.innerHTML=`<div class="top"><span class="badge ${s.kind}">${s.kind==='q'?'питання':'відповідь'}</span><input class="kw" value="${esc(s.kw)}" placeholder="ключові слова сцени"></div>
   <div class="body"><div class="phone" ${pk?'':'style="opacity:.5"'}>${pk?`<img src="${pk.url}">`:''}<div class="t">Розкажи як це було</div>${phoneSvg()}</div>
   <div class="vars">${s.vars.map(v=>`<div class="v ${v.id===s.picked?'sel':''} ${v.rej?'rej':''}" data-id="${v.id}"><img src="${v.url}"><button class="x" title="відхилити">✕</button><button class="dl" title="зберегти">⤓</button></div>`).join('')}</div></div>
@@ -160,7 +186,7 @@ function slotEl(s){
   el.querySelector('.kw').onchange=e=>{s.kw=e.target.value;save()};
   el.querySelector('.gen').onclick=()=>generate(s);
   el.querySelector('.appr').onclick=()=>{s.approved=!s.approved;render()};
-  el.querySelector('.clean').onclick=()=>el.querySelector('.phone').classList.toggle('clean');
+  const cl=el.querySelector('.clean');if(cl)cl.onclick=()=>el.querySelector('.phone').classList.toggle('clean');
   el.querySelectorAll('.v').forEach(d=>{const v=s.vars.find(x=>x.id===d.dataset.id);
     d.onclick=()=>{s.picked=v.id;s.approved=false;render()};
     d.ondblclick=()=>{$('#lb img').src=v.url;$('#lb').style.display='flex'};
@@ -168,8 +194,8 @@ function slotEl(s){
     d.querySelector('.dl').onclick=e=>{e.stopPropagation();dlOne(s,v)}});
   return el}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function stats(){$('#sSlots').textContent=slots.length;$('#sAppr').textContent=slots.filter(s=>s.approved).length;$('#sSpent').textContent=spent.toFixed(2);$('#costHint').textContent=`≈ $${cost(params().n).toFixed(3)} за слот, $${(cost(params().n)*30).toFixed(2)} за 30 слотів (оцінка)`;save()}
-function save(){ls('logia_cfg',JSON.stringify({base:$('#base').value,moodQ:$('#moodQ').value,moodA:$('#moodA').value,neg:$('#neg').value,model:$('#model').value,quality:$('#quality').value,fmt:$('#fmt').value,sizeSel:$('#sizeSel').value,sizeCustom:$('#sizeCustom').value,n:$('#n').value,conc:$('#conc').value,kws:slots.map(s=>[s.kind,s.n,s.kw]),mock:$('#mock').checked}));if($('#remember').checked)ls('logia_key',$('#key').value);else ls('logia_key','')}
+function stats(){$('#sSlots').textContent=slots.length;$('#sAppr').textContent=slots.filter(s=>s.approved).length;$('#sSpent').textContent=spent.toFixed(2);$('#costHint').textContent=`≈ $${cost(params().n).toFixed(3)} за слот, $${(cost(params().n)*slots.length).toFixed(2)} за ${slots.length} слотів (оцінка)`;save()}
+function save(){ls('logia_cfg',JSON.stringify({base:$('#base').value,moodQ:$('#moodQ').value,moodA:$('#moodA').value,neg:$('#neg').value,model:$('#model').value,quality:$('#quality').value,fmt:$('#fmt').value,sizeSel:$('#sizeSel').value,sizeCustom:$('#sizeCustom').value,n:$('#n').value,conc:$('#conc').value,kws:mode==='frames'?undefined:slots.map(s=>[s.kind,s.n,s.kw]),mock:$('#mock').checked}));if($('#remember').checked)ls('logia_key',$('#key').value);else ls('logia_key','')}
 
 function mockImage(seed,w,h){const c=document.createElement('canvas');c.width=w/4;c.height=h/4;const g=c.getContext('2d');let x=seed*9301+49297;const r=()=>(x=(x*9301+49297)%233280)/233280;const hue=Math.floor(r()*360);const gr=g.createLinearGradient(0,0,0,c.height);gr.addColorStop(0,`hsl(${hue},45%,35%)`);gr.addColorStop(1,`hsl(${(hue+40)%360},55%,65%)`);g.fillStyle=gr;g.fillRect(0,0,c.width,c.height);g.fillStyle=`hsl(${(hue+60)%360},80%,88%)`;g.beginPath();g.arc(c.width*(.2+.6*r()),c.height*.35,c.width/12,0,7);g.fill();for(let l=0;l<3;l++){g.fillStyle=`hsl(${hue},35%,${16+l*7}%)`;g.beginPath();g.moveTo(0,c.height);for(let i=0;i<=8;i++)g.lineTo(i*c.width/8,c.height*(.52+l*.1)+(r()-.5)*c.height*.12);g.lineTo(c.width,c.height);g.fill()}return c.toDataURL('image/png')}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -177,6 +203,11 @@ async function oa(path,body,tries=4){const key=$('#key').value.trim();if(!key)th
   for(let i=0;i<tries;i++){let r;try{r=await fetch('https://api.openai.com/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(body)})}catch(e){if(i==tries-1)throw new Error('Мережа: '+e.message);await sleep(1500*2**i);continue}
     if(r.ok)return r.json();const j=await r.json().catch(()=>({}));const m=(j.error&&j.error.message)||r.status;if((r.status===429||r.status>=500)&&i<tries-1){await sleep(1500*2**i);continue}throw new Error(`${r.status}: ${m}`)}}
 
+async function oaEdit(fields,blob,tries=3){const key=$('#key').value.trim();if(!key)throw new Error('Вставте API ключ або увімкніть mock');
+  for(let i=0;i<tries;i++){const fd=new FormData();Object.entries(fields).forEach(([k,v])=>fd.append(k,v));fd.append('image[]',blob,'ref.png');let r;
+    try{r=await fetch('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:'Bearer '+key},body:fd})}catch(e){if(i==tries-1)throw new Error('Мережа: '+e.message);await sleep(1500*2**i);continue}
+    if(r.ok)return r.json();const j=await r.json().catch(()=>({}));const m=(j.error&&j.error.message)||r.status;if((r.status===429||r.status>=500)&&i<tries-1){await sleep(1500*2**i);continue}throw new Error(`${r.status}: ${m}`)}}
+function refOf(s){if(s.kind!=='f'||s.n===1||!$('#useRef').checked)return null;const f1=slots.find(x=>x.kind==='f'&&x.n===1);return f1?f1.vars.find(v=>v.id===f1.picked&&!v.rej)||null:null}
 async function generate(s){
   if(s.st==='gen')return;s.err='';
   let p;try{p=params();checkSize(p.size)}catch(e){s.err=e.message;render();return}
@@ -185,7 +216,10 @@ async function generate(s){
     const mime={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}[p.fmt];
     let items=[];
     if($('#mock').checked){await sleep(400);items=Array.from({length:p.n},(_,i)=>({url:mockImage(Date.now()%1e5+i*17+s.n,...checkSize(p.size))}))}
-    else{const j=await oa('images/generations',{model:p.model,prompt:prompt(s),size:p.size,quality:p.quality,n:p.n,output_format:p.fmt});items=j.data.map(d=>({url:`data:${mime};base64,${d.b64_json}`}));spent+=cost(items.length)}
+    else{const ref=refOf(s);let j;
+      if(ref){const blob=await (await fetch(ref.url)).blob();j=await oaEdit({model:p.model,prompt:'Use the attached image only as a style reference for lighting, color grade, film grain and mood. Create a NEW photograph of a different scene. '+prompt(s),size:p.size,quality:p.quality,n:p.n,output_format:p.fmt},blob)}
+      else j=await oa('images/generations',{model:p.model,prompt:prompt(s),size:p.size,quality:p.quality,n:p.n,output_format:p.fmt});
+      items=j.data.map(d=>({url:`data:${mime};base64,${d.b64_json}`}));spent+=cost(items.length)}
     items.forEach((it,i)=>{it.id=Date.now().toString(36)+i+Math.random().toString(36).slice(2,5);it.fmt=$('#mock').checked?'png':p.fmt;s.vars.push(it)});
     if(!s.picked)s.picked=items[0].id
   }catch(e){s.err=e.message}
@@ -211,7 +245,7 @@ function dlOne(s,v){const a=document.createElement('a');a.href=v.url;a.download=
 async function dlAll(){const ap=slots.filter(s=>s.approved);if(!ap.length){toast('Немає затверджених слотів');return}
   if(!window.JSZip){toast('JSZip не завантажився, збережіть вручну (⤓)');return}
   const z=new JSZip();const items={};
-  slots.forEach(s=>{const v=s.vars.find(x=>x.id===s.picked);const n=s.n;items[n]=items[n]||{question:n,q_bg:null,a_bg:null};if(s.approved&&v){const f=`${s.id.replace('-','_')}.${ext(v)}`;z.file(f,b64(v.url),{base64:true});items[n][s.kind+'_bg']=f}});
+  slots.forEach(s=>{const v=s.vars.find(x=>x.id===s.picked);const n=s.n;items[n]=items[n]||(s.kind==='f'?{frame:n}:{question:n,q_bg:null,a_bg:null});if(s.approved&&v){const tm=(s.time||'').replace(/[^0-9.:–-]/g,'').replace(/[:–]/g,'_');const f=s.kind==='f'?`${s.id}.${ext(v)}`:`${s.id.replace('-','_')}.${ext(v)}`;z.file(f,b64(v.url),{base64:true});items[n][s.kind==='f'?'file':s.kind+'_bg']=f;if(s.kind==='f'){items[n].time=s.time;items[n].voiceover=s.vo}}});
   z.file('manifest.json',JSON.stringify({version:1,size:size(),items:Object.values(items)},null,2));
   z.file('keywords.json',JSON.stringify(slots.map(s=>({id:s.id,kw:s.kw,prompt:prompt(s)})),null,2));
   const blob=await z.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='logia-backgrounds.zip';a.click()}
@@ -221,10 +255,11 @@ $('#apprAll').onclick=()=>{slots.forEach(s=>{if(s.picked&&!s.approved&&s.vars.so
 $('#dlAll').onclick=dlAll;
 $('#reset').onclick=()=>{if(confirm('Скинути всі слоти і картинки?')){spent=0;initSlots(Array.from({length:15},()=>['','']))}};
 $('#plan').onclick=()=>plan(true);$('#planMock').onclick=()=>plan(false);
+$('#loadFrames').onclick=loadFrames;
 $('#loadMd').onclick=()=>{const p=parseMd($('#md').value);if(!p.length){toast('MD не розпізнано');return}initSlots(p)};
 $('#sizeSel').onchange=()=>{$('#sizeCustom').style.display=$('#sizeSel').value==='custom'?'block':'none';stats()};
 $('#lb').onclick=()=>$('#lb').style.display='none';
-['quality','n','sizeCustom','model','fmt','base','moodQ','moodA','neg','conc','mock','remember','key'].forEach(i=>$('#'+i).addEventListener('change',stats));
+['gs','gn','useRef','quality','n','sizeCustom','model','fmt','base','moodQ','moodA','neg','conc','mock','remember','key'].forEach(i=>$('#'+i).addEventListener('change',stats));
 
 (function init(){
   $('#base').value=DEF.base;$('#moodQ').value=DEF.moodQ;$('#moodA').value=DEF.moodA;$('#neg').value=DEF.neg;
